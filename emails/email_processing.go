@@ -1,54 +1,44 @@
 package emails
 
 import (
+	"GenesisTask/cache"
 	"GenesisTask/config"
 	"GenesisTask/crypto"
-	"bufio"
+	"GenesisTask/model"
 	"log"
-	"os"
 	"strconv"
 	"time"
 
 	"gopkg.in/gomail.v2"
 )
 
-func SendEmails() {
+func SendEmails(users *[]model.User) {
 	cfg := config.Get()
-	path := cfg.StorageFile
-	file, err := os.OpenFile(path, os.O_RDONLY, 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer file.Close()
-
 	dialer := gomail.NewDialer(cfg.SMTPHost, cfg.SMTPPort,
 		cfg.EmailAddress, cfg.EmailPassword)
 
-	scanner := bufio.NewScanner(file)
-	scanner.Split(bufio.ScanLines)
 	msg := composeMessage()
 
-	for scanner.Scan() {
-		to := scanner.Text()
+	for _, user := range *users {
+		to := user.GetEmail()
 		msg.SetHeader("To", to)
 
 		if err := dialer.DialAndSend(msg); err != nil {
 			log.Fatal(err)
 		}
 	}
-
-	if err := scanner.Err(); err != nil {
-		log.Fatal(err)
-	}
-
 }
 
 func composeMessage() *gomail.Message {
-	price, err := crypto.GetConfigCurrencyRate()
+	price, err := cache.GetConfigCurrencyRateFromCache()
 	if err != nil {
-		log.Fatal("Unable to get bitcoin price!")
+		log.Print("Getting not from cache")
+		price, err = crypto.GetConfigCurrencyRate()
+		if err != nil {
+			log.Fatal("Unable to get currency rate")
+		}
 	}
-	subject := "Crypto Rate"
+	subject := "Currency Rate"
 	body := config.Get().BaseCurrency + " price on " + time.Now().String() + " : " +
 		strconv.FormatFloat(price, 'f', -1, 64) + config.Get().QuotedCurrency
 
