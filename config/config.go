@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/joho/godotenv"
@@ -16,7 +17,7 @@ type Config struct {
 	CoinApiFormatURL       string
 	CoinApiKey             string
 	BaseCurrency           string
-	QuotedCurrency         string
+	QuoteCurrency          string
 	CryptoCurrencyProvider string
 	EmailAddress           string
 	EmailPassword          string
@@ -43,7 +44,7 @@ func Get() *Config {
 			CoinApiFormatURL:       os.Getenv(CoinApiFormatURL),
 			CoinApiKey:             os.Getenv(CoinApiKey),
 			BaseCurrency:           os.Getenv(BaseCurrency),
-			QuotedCurrency:         os.Getenv(QuotedCurrency),
+			QuoteCurrency:          os.Getenv(QuoteCurrency),
 			CryptoCurrencyProvider: os.Getenv(CryptoCurrencyProvider),
 			EmailAddress:           os.Getenv(EmailAddress),
 			EmailPassword:          os.Getenv(EmailPassword),
@@ -59,12 +60,17 @@ func Get() *Config {
 
 func LoadEnv() {
 	err := godotenv.Load(".env")
-	if err != nil {
-		// in case we test from inner directories;
-		// sequence to go to the upper one
-		err = godotenv.Load("./../.env")
-		if err != nil {
-			log.Fatal(err)
+	if err == nil {
+		return
+	}
+	// In case we test from inner directories:
+	max_directory_deep := 5
+	for i := 1; i != max_directory_deep; i++ {
+		escape_sequence := strings.Repeat("../", i)
+		err = godotenv.Load("./" + escape_sequence + ".env")
+		if err == nil {
+			return
 		}
 	}
+	log.Fatal(err)
 }
